@@ -5,23 +5,25 @@
 ##  Evgeny Muravjev Typograph, http://mdash.ru   ##
 ##  Version: 3.5-py                              ##
 ##  Release Date: Jyly 2, 2015                   ##
-##  Authors: Evgeny Muravjev & Alexander Drutsa  ## 
+##  Authors: Evgeny Muravjev & Alexander Drutsa  ##
 ###################################################
 
-import sys
 import re
-import base64
+import sys
 import types
+import base64
+
+import six
 
 LAYOUT_STYLE = 1
 LAYOUT_CLASS = 2
-INTERNAL_BLOCK_OPEN = u'%%%INTBLOCKO235978%%%'
-INTERNAL_BLOCK_CLOSE = u'%%%INTBLOCKC235978%%%'
+INTERNAL_BLOCK_OPEN = '%%%INTBLOCKO235978%%%'
+INTERNAL_BLOCK_CLOSE = '%%%INTBLOCKC235978%%%'
 
 #static (TO BE DONE: protected)
 _typographSpecificTagId = False
 
-    
+
 class _EMT_Lib:
 
     _charsTable = {
@@ -31,7 +33,7 @@ class _EMT_Lib:
                           'utf8' : {0x00A0, 0x2002, 0x2003, 0x2008, 0x2009}},
         '-'     : {'html' : { '&ndash;', '&minus;', '&#151;', '&#8212;', '&#8211;'}, #'&mdash;',
                           'utf8' : {0x002D, 0x2010, 0x2012, 0x2013}}, #0x2014,
-        u'—'     : {'html' : {'&mdash;'},
+        '—'     : {'html' : {'&mdash;'},
                           'utf8' : {0x2014}},
         '=='     : {'html' : {'&equiv;'},
                          'utf8' : {0x2261}},
@@ -54,22 +56,22 @@ class _EMT_Lib:
         '&'     : {'html' : {'&amp;', '&#38;'}},
         '(tm)'     : {'html' : {'&trade;', '&#153;'},
                          'utf8' : {0x2122}},
-        #'(r)'     : {'html' : {'<sup>&reg;</sup>', '&reg;', '&#174;'}, 
-        '(r)'     : {'html' : {'&reg;', '&#174;'}, 
+        #'(r)'     : {'html' : {'<sup>&reg;</sup>', '&reg;', '&#174;'},
+        '(r)'     : {'html' : {'&reg;', '&#174;'},
                          'utf8' : {0x00AE}},
-        '(c)'     : {'html' : {'&copy;', '&#169;'}, 
+        '(c)'     : {'html' : {'&copy;', '&#169;'},
                          'utf8' : {0x00A9}},
-        u'§'     : {'html' : {'&sect;', '&#167;'}, 
+        '§'     : {'html' : {'&sect;', '&#167;'},
                          'utf8' : {0x00A7}},
-        u'`'     : {'html' : {'&#769;'}},
-        '\''     : {'html' : {'&rsquo;', u'’'}},
-        u'x'     : {'html' : {'&times;', '&#215;'}, 
-                         'utf8' : {u'×'} }, # ????? ?? ? ???? ????? ???? ????         
+        '`'     : {'html' : {'&#769;'}},
+        '\''     : {'html' : {'&rsquo;', '’'}},
+        'x'     : {'html' : {'&times;', '&#215;'},
+                         'utf8' : {'×'} }, # ????? ?? ? ???? ????? ???? ????
     }
     #Добавление к тегам атрибута 'id', благодаря которому
     #при повторном типографирование текста будут удалены теги,
     #Расставленные данным типографом
-    
+
 # Удаление кодов HTML из текста
 #
 # <code>
@@ -87,36 +89,36 @@ class _EMT_Lib:
 #/
 #static public
     def clear_special_chars(self, text, mode = None):
-        if isinstance(mode, basestring):
+        if isinstance(mode, six.string_types):
             mode = [mode]
-            
+
         if mode == None:
             mode = ['utf8', 'html']
-            
-        if(not (isinstance(mode, (list, tuple)) and not isinstance(mode, basestring))):
+
+        if(not (isinstance(mode, (list, tuple)) and not isinstance(mode, six.string_types))):
             return False
-        
+
         moder = []
         for mod in mode:
-            if (mod in ['utf8','html']):
+            if mod in ['utf8','html']:
                 moder.append(mod)
-                
-        if (len(moder)==0):
+
+        if not moder:
             return False
-        
+
         for char in self._charsTable:
             vals = self._charsTable[char]
             for type in mode:
-                if (type in vals): 
+                if (type in vals):
                     for v in vals[type]:
-                        if ('utf8' == type and isinstance(v, int)): 
+                        if ('utf8' == type and isinstance(v, int)):
                             v = unichr(v)
-                            
-                        if ('html' == type): 
-                            if(re.search(u"<[a-z]+>",v, re.I)): #OK
+
+                        if ('html' == type):
+                            if(re.search("<[a-z]+>",v, re.I)): #OK
                                 v = self.safe_tag_chars(v, True)
-                                
-                        text = text.replace(v, char) #OK    
+
+                        text = text.replace(v, char) #OK
         return text
 
 # NOTUSED
@@ -130,34 +132,34 @@ class _EMT_Lib:
 #/
     def remove_html_tags(self, text, allowableTag = None):
         ignore = None
-        
+
         if (None != allowableTag):
-            if (isinstance(allowableTag, basestring)):
+            if (isinstance(allowableTag, six.string_types)):
                 allowableTag = [allowableTag]
-    
-            if (not (isinstance(allowableTag, (list, tuple)) and not isinstance(allowableTag, basestring))):
+
+            if (not (isinstance(allowableTag, (list, tuple)) and not isinstance(allowableTag, six.string_types))):
                 tags = []
                 for tag in allowableTag:
                     if '<' != tag[0:1] or  '>' != tag[-1]: #OK
                         continue
-                    
+
                     if '/' == tag[1:1]: #OK
                         continue
-                    
+
                     tags.append(tag)
-                
-                ignore = ''.join('', tags) #OK    
+
+                ignore = ''.join('', tags) #OK
         text = re.sub('\<br\s*/?>', "\n", text, 0, re.I) #OK
         text = re.sub('\</p\>\s*\<p\>', "\n\n", text ) #OK
-        #text = strip_tags(text, ignore) #TODO    
+        #text = strip_tags(text, ignore) #TODO
         return text
 
-    
+
 # Сохраняем содержимое тегов HTML
 #
 # Тег 'a' кодируется со специальным префиксом для дальнейшей
 # возможности выносить за него кавычки.
-# 
+#
 # @param     string $text
 # @param     bool $safe
 # @return  string
@@ -165,10 +167,10 @@ class _EMT_Lib:
     def safe_tag_chars(self, text, way):
         if (way):
              #OK:
-            text = re.sub('(\</?)([^<>]+?)(\>)', lambda m: m.group(0) if (len(m.group(1))==1 and m.group(2).strip()[0:1] == '-' and m.group(2).strip()[1:2] != '-') else  (m.group(1)+(u"%%___" if m.group(2).strip()[0:1] == u'a' else u"") + EMT_Lib.encrypt_tag(m.group(2).strip()) + m.group(3)), text, 0, re.S |re.U)        
+            text = re.sub('(\</?)([^<>]+?)(\>)', lambda m: m.group(0) if (len(m.group(1))==1 and m.group(2).strip()[0:1] == '-' and m.group(2).strip()[1:2] != '-') else  (m.group(1)+("%%___" if m.group(2).strip()[0:1] == 'a' else "") + EMT_Lib.encrypt_tag(m.group(2).strip()) + m.group(3)), text, 0, re.S |re.U)
         else:
              #OK:
-            text = re.sub('(\</?)([^<>]+?)(\>)', lambda m: m.group(0) if (len(m.group(1))==1 and m.group(2).strip()[0:1] == '-' and m.group(2).strip()[1:2] != '-') else  (m.group(1)+(EMT_Lib.decrypt_tag(m.group(2).strip()[4:]) if m.group(2).strip()[0:3] == u'%%___' else EMT_Lib.decrypt_tag(m.group(2).strip())) + m.group(3)), text, 0, re.S|re.U)        
+            text = re.sub('(\</?)([^<>]+?)(\>)', lambda m: m.group(0) if (len(m.group(1))==1 and m.group(2).strip()[0:1] == '-' and m.group(2).strip()[1:2] != '-') else  (m.group(1)+(EMT_Lib.decrypt_tag(m.group(2).strip()[4:]) if m.group(2).strip()[0:3] == '%%___' else EMT_Lib.decrypt_tag(m.group(2).strip())) + m.group(3)), text, 0, re.S|re.U)
         return text
 
 
@@ -179,8 +181,8 @@ class _EMT_Lib:
 # @param     string $text
 # @return  string
 #/
-    def decode_internal_blocks(self, text):    
-        text = re.sub(INTERNAL_BLOCK_OPEN+'([a-zA-Z0-9/=]+?)'+INTERNAL_BLOCK_CLOSE, lambda m: EMT_Lib.decrypt_tag(m.group(1)), text, 0, re.S)    
+    def decode_internal_blocks(self, text):
+        text = re.sub(INTERNAL_BLOCK_OPEN+'([a-zA-Z0-9/=]+?)'+INTERNAL_BLOCK_CLOSE, lambda m: EMT_Lib.decrypt_tag(m.group(1)), text, 0, re.S)
         return text
 
 
@@ -194,53 +196,53 @@ class _EMT_Lib:
 
 
 
-# Создание тега с защищенным содержимым 
+# Создание тега с защищенным содержимым
 #
 # @param     string $content текст, который будет обрамлен тегом
-# @param     string $tag тэг 
+# @param     string $tag тэг
 # @param     array $attribute список атрибутов, где ключ - имя атрибута, а значение - само значение данного атрибута
 # @return     string
 #/
 #static public
-    def build_safe_tag(self, content, tag = u'span', attribute = {}, layout = LAYOUT_STYLE ): #TODO: attributr - list or dict ?? 
+    def build_safe_tag(self, content, tag = 'span', attribute = {}, layout = LAYOUT_STYLE ): #TODO: attributr - list or dict ??
         htmlTag = tag
-        
+
         if (_typographSpecificTagId):
             if(not 'id' in attribute):
-                attribute['id'] = u'emt-2' + mt_rand(1000,9999) #TODO
-        
+                attribute['id'] = 'emt-2' + mt_rand(1000,9999) #TODO
+
         classname = ""
-        if (len(attribute)): 
+        if (len(attribute)):
             if(layout & LAYOUT_STYLE):
                 if('__style' in attribute and attribute['__style']):
                     if('style' in attribute and attribute['style']):
                         st = attribute['style'].strip() #TODO
                         if(st[-1] != ";"): #OK
                             st += ";"
-    
+
                         st += attribute['__style']
                         attribute['style'] = st
                     else:
                         attribute['style'] = attribute['__style']
-    
+
                     del attribute['__style']
-    
+
             for attr in attribute:
                 value = attribute[attr]
-                if(attr == u"__style"):
+                if(attr == "__style"):
                     continue
-                
-                if(attr == u"class"):
+
+                if(attr == "class"):
                     classname = str(value)
                     continue
-                
-                htmlTag += u" %s=\"%s\"" % (str(attr), str(value))
-            
-        
+
+                htmlTag += " %s=\"%s\"" % (str(attr), str(value))
+
+
         if( (layout & LAYOUT_CLASS ) and classname):
-            htmlTag += u" class=\"%s\"" % classname
-        
-        return u"<" + EMT_Lib.encrypt_tag(htmlTag) + u">" + content +u"</" + EMT_Lib.encrypt_tag(tag) + u">"
+            htmlTag += " class=\"%s\"" % classname
+
+        return "<" + EMT_Lib.encrypt_tag(htmlTag) + ">" + content +"</" + EMT_Lib.encrypt_tag(tag) + ">"
 
 
 # Метод, осуществляющий кодирование (сохранение) информации
@@ -263,7 +265,7 @@ class _EMT_Lib:
 
 
     def strpos_ex(self, haystack, needle, offset = None): #TODO: &$haystack - '&' couldn't work
-        if((isinstance(needle, (list, tuple)) and not isinstance(needle, basestring)) ):
+        if((isinstance(needle, (list, tuple)) and not isinstance(needle, six.string_types)) ):
             m = -1
             w = -1
             for n in needle:
@@ -277,30 +279,30 @@ class _EMT_Lib:
                 if(p < m):
                     m = p
                     w = n
-    
+
             if (m ==-1):
                 return False
-            
+
             return {'pos' : m, 'str' : w}
-        
-        return haystack.find(needle, offset)    #TODO   
+
+        return haystack.find(needle, offset)    #TODO
 
 
     def process_selector_pattern(self, pattern): #TODO: &$pattern - '&' couldn't work
         if(pattern==False):
             return False
-        #pattern = preg_quote(pattern , '/') #TODO 
-        pattern = pattern.replace("*", "[a-z0-9_\-]*") #TODO 
+        #pattern = preg_quote(pattern , '/') #TODO
+        pattern = pattern.replace("*", "[a-z0-9_\-]*") #TODO
         return pattern
 
     def test_pattern(self, pattern, text):
         if(pattern == False or pattern == None):
             return True
-    
-        return re.match(pattern, text) #TODO 
+
+        return re.match(pattern, text) #TODO
 
     def strtolower(self, string):
-        return string.lower()    
+        return string.lower()
 
 # взято с http://www.w3.org/TR/html4/sgml/entities.html
     html4_char_ents = {
@@ -412,14 +414,14 @@ class _EMT_Lib:
         'Iota' : 921,
         'Kappa' : 922,
         'Lambda' : 923,
-        'Mu' : 924,
-        'Nu' : 925,
+        'M' : 924,
+        'N' : 925,
         'Xi' : 926,
         'Omicron' : 927,
         'Pi' : 928,
         'Rho' : 929,
         'Sigma' : 931,
-        'Tau' : 932,
+        'Ta' : 932,
         'Upsilon' : 933,
         'Phi' : 934,
         'Chi' : 935,
@@ -436,15 +438,15 @@ class _EMT_Lib:
         'iota' : 953,
         'kappa' : 954,
         'lambda' : 955,
-        'mu' : 956,
-        'nu' : 957,
+        'm' : 956,
+        'n' : 957,
         'xi' : 958,
         'omicron' : 959,
         'pi' : 960,
         'rho' : 961,
         'sigmaf' : 962,
         'sigma' : 963,
-        'tau' : 964,
+        'ta' : 964,
         'upsilon' : 965,
         'phi' : 966,
         'chi' : 967,
@@ -566,7 +568,7 @@ class _EMT_Lib:
     def html_char_entity_to_unicode(self, entity):
         if(EMT_Lib.html4_char_ents.get(entity)):
             return unichr(EMT_Lib.html4_char_ents[entity])
-        
+
         return False
 
 
@@ -575,55 +577,55 @@ class _EMT_Lib:
 # @param string $text
 #/
     def convert_html_entities_to_unicode(self, text):  #TODO: &$text - '&' couldn't work
-        text = re.sub("\&#([0-9]+)\;", 
+        text = re.sub("\&#([0-9]+)\;",
                 lambda m: unichr(int(m.group(1)))
                 , text) #TODO
-        text = re.sub("\&#x([0-9A-F]+)\;", 
+        text = re.sub("\&#x([0-9A-F]+)\;",
                 lambda m: unichr(int(m.group(1),16))
                 , text) #TODO
-        text = re.sub("\&([a-zA-Z0-9]+)\;", 
+        text = re.sub("\&([a-zA-Z0-9]+)\;",
                 lambda m: EMT_Lib.html_char_entity_to_unicode(m.group(1)) if  EMT_Lib.html_char_entity_to_unicode(m.group(1)) else m.group(0)
                 , text) #TODO
         return text
     def process_preg_replacement(self, r):
-        return re.sub(u'\\\\([0-9]+)',u'\\\\g<\g<1>>', r, 0, re.U)
-    
+        return re.sub('\\\\([0-9]+)','\\\\g<\g<1>>', r, 0, re.U)
+
     def parse_preg_pattern(self, pattern):
         es = pattern[0:1]
         modifiers = pattern.split(es).pop()
-        b = {'i': re.I, 's': re.S, 'm': re.M, 'u' : re.U }
+        b = {'i': re.I, 's': re.S, 'm': re.M, '' : re.U }
         flags = re.U
         xeval = False
         for i in modifiers:
-            if b.has_key(i):
+            if i in b:
                 flags |= b[i]
             if i=='e':
                 xeval = True
         newpattern = pattern[1:-1-len(modifiers)]
         newpattern = newpattern.replace('\\'+es, es)
         return {'pattern' : newpattern, 'flags': flags, 'eval' : xeval }
-    
+
     def preg_replace_one(self, pattern, replacement, text):
         p = EMT_Lib.parse_preg_pattern(pattern)
-       
+
         if not p['eval']:
             return re.sub(p['pattern'], EMT_Lib.process_preg_replacement(replacement), text, 0, p['flags'])
-            
-        exec "f = lambda m: " + replacement
+
+        exec("f = lambda m: " + replacement)
         return re.sub(p['pattern'], f, text, 0, p['flags'])
-    
+
     def preg_replace(self, pattern, replacement, text):
-        if isinstance(pattern, basestring):
-            return EMT_Lib.preg_replace_one(pattern, replacement, text)        
+        if isinstance(pattern, six.string_types):
+            return EMT_Lib.preg_replace_one(pattern, replacement, text)
         for k, i in enumerate(pattern):
-            if isinstance(replacement, basestring):
+            if isinstance(replacement, six.string_types):
                 repl = replacement
             else:
                 repl = replacement[k]
             text = EMT_Lib.preg_replace_one(i, repl, text)
         return text
-    
-    def preg_replace_ex(self, pattern, replacement, text, cycled = False):        
+
+    def preg_replace_ex(self, pattern, replacement, text, cycled = False):
         while True:
             texto = text
             text = EMT_Lib.preg_replace(pattern, replacement, text)
@@ -632,71 +634,71 @@ class _EMT_Lib:
             if text==texto:
                 break
         return text
-    
+
     def str_replace_one(self, pattern, replacement, text):
         return text.replace(pattern, replacement)
-    
+
     def str_replace(self, pattern, replacement, text):
-        if isinstance(pattern, basestring):
-            return EMT_Lib.str_replace_one(pattern, replacement, text)        
+        if isinstance(pattern, six.string_types):
+            return EMT_Lib.str_replace_one(pattern, replacement, text)
         for k, i in enumerate(pattern):
-            if isinstance(replacement, basestring):
+            if isinstance(replacement, six.string_types):
                 repl = replacement
             else:
                 repl = replacement[k]
             text = EMT_Lib.str_replace_one(i, repl, text)
         return text
-    
+
     def str_ireplace_one(self, pattern, replacement, text):
         return re.sub(re.escape(pattern), lambda m: replacement, text, 0, re.I)
         #return re.sub(re.escape(pattern), re.escape(replacement), text, 0, re.I)
-        
-    
+
+
     def str_ireplace(self, pattern, replacement, text):
-        if isinstance(pattern, basestring):
-            return EMT_Lib.str_ireplace_one(pattern, replacement, text)        
+        if isinstance(pattern, six.string_types):
+            return EMT_Lib.str_ireplace_one(pattern, replacement, text)
         for k, i in enumerate(pattern):
-            if isinstance(replacement, basestring):
+            if isinstance(replacement, six.string_types):
                 repl = replacement
             else:
                 repl = replacement[k]
             text = EMT_Lib.str_ireplace_one(i, repl, text)
         return text
-    
+
     def substr (self, s, start, length = None):
         if len(s) <= start:
-            return u""
+            return ""
         if length is None:
             return s[start:]
         elif length == 0:
-            return u""
+            return ""
         elif length > 0:
             return s[start:start + length]
         else:
             return s[start:length]
-    
+
     def ifop(self, cond, ontrue, onfalse):
         return ontrue if cond else onfalse
-    
+
     def re_sub(self, pattern, replacement, string, count , flags):
         def _r(m):
             # Now this is ugly.
             # Python has a "feature" where unmatched groups return None
             # then re.sub chokes on this.
-            # see http://bugs.python.org/issue1519638            
-            # this works around and hooks into the internal of the re module...    
+            # see http://bugs.python.org/issue1519638
+            # this works around and hooks into the internal of the re module...
             # the match object is replaced with a wrapper that
-            # returns "" instead of None for unmatched groups    
+            # returns "" instead of None for unmatched groups
             class _m():
                 def __init__(self, m):
                     self.m=m
                     self.string=m.string
                 def group(self, n):
                     return m.group(n) or ""
-    
+
             return re._expand(pattern, _m(m), replacement)
         return re.sub(pattern, _r, string, count , flags)
-    
+
     def split_number(self, num):
         repl = ""
         for i in range(len(num),-1,-3):
@@ -705,25 +707,25 @@ class _EMT_Lib:
             else:
                 repl = num[0:i] + repl
         return repl
-     
+
 	# https://mathiasbynens.be/demo/url-regex
 	# @gruber v2 (218 chars)
     def url_regex(self):
-        #return u"""(?i)\b((?:[a-z][\w-]+:(?:/{1,3}|[a-z0-9%])|www\d{0,3}[.]|[a-z0-9.\-]+[.][a-z]{2,4}/)(?:[^\s()<>]+|\(([^\s()<>]+|(\([^\s()<>]+\)))*\))+(?:\(([^\s()<>]+|(\([^\s()<>]+\)))*\)|[^\s`!()\[\]{};:'".,<>?«»“”‘’]))"""
-        return u"""((?:[a-z][\w-]+:(?:\/{1,3}|[a-z0-9%])|www\d{0,3}[.]|[a-z0-9.\-]+[.][a-z]{2,4}\/)(?:[^\s()<>]+|\(([^\s()<>]+|(\([^\s()<>]+\)))*\))+(?:\(([^\s()<>]+|(\([^\s()<>]+\)))*\)|[^\s`!()\[\]{};:'".,<>?«»“”‘’]))"""
-	
+        #return """(?i)\b((?:[a-z][\w-]+:(?:/{1,3}|[a-z0-9%])|www\d{0,3}[.]|[a-z0-9.\-]+[.][a-z]{2,4}/)(?:[^\s()<>]+|\(([^\s()<>]+|(\([^\s()<>]+\)))*\))+(?:\(([^\s()<>]+|(\([^\s()<>]+\)))*\)|[^\s`!()\[\]{};:'".,<>?«»“”‘’]))"""
+        return """((?:[a-z][\w-]+:(?:\/{1,3}|[a-z0-9%])|www\d{0,3}[.]|[a-z0-9.\-]+[.][a-z]{2,4}\/)(?:[^\s()<>]+|\(([^\s()<>]+|(\([^\s()<>]+\)))*\))+(?:\(([^\s()<>]+|(\([^\s()<>]+\)))*\)|[^\s`!()\[\]{};:'".,<>?«»“”‘’]))"""
+
 	# https://emailregex.com/
     def email_regex(self):
-        z = u"""(?:[a-z0-9!#$%&'*+/=?^_`{|}~-]+(?:\.[a-z0-9!#$%&'*+/=?^_`{|}~-]+)*|"(?:[\x01-\x08\x0b\x0c\x0e-\x1f\x21\x23-\x5b\x5d-\x7f]|\\[\x01-\x09\x0b\x0c\x0e-\x7f])*")@(?:(?:[a-z0-9](?:[a-z0-9-]*[a-z0-9])?\.)+[a-z0-9](?:[a-z0-9-]*[a-z0-9])?|\[(?:(?:25[0-5]|2[0-4][0-9]|[01]?[0-9][0-9]?)\.){3}(?:25[0-5]|2[0-4][0-9]|[01]?[0-9][0-9]?|[a-z0-9-]*[a-z0-9]:(?:[\x01-\x08\x0b\x0c\x0e-\x1f\x21-\x5a\x53-\x7f]|\\[\x01-\x09\x0b\x0c\x0e-\x7f])+)\])"""
+        z = """(?:[a-z0-9!#$%&'*+/=?^_`{|}~-]+(?:\.[a-z0-9!#$%&'*+/=?^_`{|}~-]+)*|"(?:[\x01-\x08\x0b\x0c\x0e-\x1f\x21\x23-\x5b\x5d-\x7f]|\\[\x01-\x09\x0b\x0c\x0e-\x7f])*")@(?:(?:[a-z0-9](?:[a-z0-9-]*[a-z0-9])?\.)+[a-z0-9](?:[a-z0-9-]*[a-z0-9])?|\[(?:(?:25[0-5]|2[0-4][0-9]|[01]?[0-9][0-9]?)\.){3}(?:25[0-5]|2[0-4][0-9]|[01]?[0-9][0-9]?|[a-z0-9-]*[a-z0-9]:(?:[\x01-\x08\x0b\x0c\x0e-\x1f\x21-\x5a\x53-\x7f]|\\[\x01-\x09\x0b\x0c\x0e-\x7f])+)\])"""
         return z
-	
-    
+
+
 EMT_Lib = _EMT_Lib()
 
-BASE64_PARAGRAPH_TAG = 'cA===' 
-BASE64_BREAKLINE_TAG = 'YnIgLw===' 
-BASE64_NOBR_OTAG = 'bm9icg===' 
-BASE64_NOBR_CTAG = 'L25vYnI==' 
+BASE64_PARAGRAPH_TAG = 'cA==='
+BASE64_BREAKLINE_TAG = 'YnIgLw==='
+BASE64_NOBR_OTAG = 'bm9icg==='
+BASE64_NOBR_CTAG = 'L25vYnI=='
 
 QUOTE_FIRS_OPEN = '&laquo;'
 QUOTE_FIRS_CLOSE = '&raquo;'
@@ -738,9 +740,9 @@ QUOTE_CRAWSE_CLOSE = '&ldquo;'
 # * Базовый класс для группы правил обработки текста
 # * Класс группы должен наследовать, данный класс и задавать
 # * в нём EMT_Tret::rules и EMT_Tret::$name
-# * 
+# *
 # */
-class EMT_Tret:	
+class EMT_Tret:
     #
     # Набор правил в данной группе, который задан изначально
     # Его можно менять динамически добавляя туда правила с помощью put_rule
@@ -751,8 +753,8 @@ class EMT_Tret:
         self.rules = {}
         self.rule_order = []
         self.title = ""
-        
-        
+
+
         self.disabled = {}
         self.enabled  = {}
         self._text= ''
@@ -761,33 +763,33 @@ class EMT_Tret:
         self.errors  = []
         self.debug_enabled  = False
         self.debug_info     = []
-        
-        
+
+
         self.use_layout = False
         self.use_layout_set = False
         self.class_layout_prefix = False
-        
+
         self.class_names     = {}
         self.classes         = {}
         self.settings        = {}
         self.intrep = ""
-    
+
     def log(self, str, data = None):
         if not self.logging:
             return
         self.logs.append({'info': str, 'data': data})
-    
+
     def error(self, info, data = None):
         self.errors.append({'info': info, 'data': data})
         self.log('ERROR: ' + info , data)
 
-    
+
     def debug(self, place, after_text):
         if not self.debug_info:
             return
         self.debug_info.append({'place': place,'text': after_text})
-    
-    
+
+
     #/**
     # * Установить режим разметки для данного Трэта если не было раньше установлено,
     # *   EMT_Lib::LAYOUT_STYLE - с помощью стилей
@@ -799,7 +801,7 @@ class EMT_Tret:
         if self.use_layout_set:
             return
         self.use_layout = layout
-    
+
     #/**
     # * Установить режим разметки для данного Трэта,
     # *   EMT_Lib::LAYOUT_STYLE - с помощью стилей
@@ -811,7 +813,7 @@ class EMT_Tret:
     def set_tag_layout(layout = LAYOUT_STYLE):
         self.use_layout = layout
         self.use_layout_set = True
-    
+
     def set_class_layout_prefix(self, prefix):
         self.class_layout_prefix = prefix
 
@@ -849,35 +851,35 @@ class EMT_Tret:
         self.post_parse()
 
 
-    def intrepfun(self, m):    	
-        exec u'x = ' + self.intrep +u''
+    def intrepfun(self, m):
+        exec('x = ' + self.intrep + '')
         return x
 
     def preg_replace_one(self, pattern, replacement, text):
         p = EMT_Lib.parse_preg_pattern(pattern)
-       
+
         if not p['eval']:
             #print p['pattern']
             #print EMT_Lib.process_preg_replacement(replacement)
             #EMT_Lib.process_preg_replacement
             return EMT_Lib.re_sub(p['pattern'], (replacement), text, 0, p['flags'])
 
-        
+
         self.intrep = replacement
         return re.sub(p['pattern'], self.intrepfun, text, 0, p['flags'])
-    
+
     def preg_replace(self, pattern, replacement, text):
-        if isinstance(pattern, basestring):
-            return self.preg_replace_one(pattern, replacement, text)        
+        if isinstance(pattern, six.string_types):
+            return self.preg_replace_one(pattern, replacement, text)
         for k, i in enumerate(pattern):
-            if isinstance(replacement, basestring):
+            if isinstance(replacement, six.string_types):
                 repl = replacement
             else:
                 repl = replacement[k]
             text = self.preg_replace_one(i, repl, text)
         return text
-    
-    def preg_replace_ex(self, pattern, replacement, text, cycled = False):        
+
+    def preg_replace_ex(self, pattern, replacement, text, cycled = False):
         while True:
             texto = text
             text = self.preg_replace(pattern, replacement, text)
@@ -886,76 +888,76 @@ class EMT_Tret:
             if text==texto:
                 break
         return text
-    
+
     #def rule_order_sort(self, $a, $b):
     #    if($a['order'] == $b['order']) return 0;
     #    if($a['order'] < $b['order']) return -1;
     #    return 1;
 
     def apply_rule(self, rule):
-        name = rule['id']        
+        name = rule['id']
         disabled = self.disabled.get(rule['id']) or (rule.get('disabled') and not self.enabled.get(rule['id']))
         if disabled:
-            self.log(u"Правило $name", u"Правило отключено" + u" (по умолчанию)" if self.disabled.get(rule['id']) else "")
+            self.log("Правило $name", "Правило отключено" + " (по умолчанию)" if self.disabled.get(rule['id']) else "")
             return
-        
+
         if rule.get('function'):
             if not rule.get('pattern'):
                 if rule['function'] in dir(self):
-                        self.log(u"Правило "+name, u"Используется метод " + rule['function'] + u" в правиле")
+                        self.log("Правило "+name, "Используется метод " + rule['function'] + " в правиле")
                         getattr(self,rule['function'])()
                         return
-                    
-                if globals().has_key(rule['function']):
-                        self.log(u"Правило " + name, u"Используется функция " + rule['function'] + u" в правиле")
+
+                if rule["function"] in globals():
+                        self.log("Правило " + name, "Используется функция " + rule['function'] + " в правиле")
                         globals()[rule['function']]()
                         return
-                
-                self.error(u'Функция '+rule['function']+u' из правила '+rule['id']+u" не найдена")
+
+                self.error('Функция '+rule['function']+' из правила '+rule['id']+" не найдена")
                 return
             else:
                 if re.match("^[a-z_0-9]+$", rule['function'], re.I):
                     p = EMT_Lib.parse_preg_pattern(rule['pattern'])
                     if rule['function'] in dir(self):
-                            self.log(u"Правило "+name, u"Замена с использованием preg_replace_callback с методом " + rule['function'] )                            
+                            self.log("Правило "+name, "Замена с использованием preg_replace_callback с методом " + rule['function'] )
                             self._text = re.sub(p['pattern'], getattr(self,rule['function']), self._text, 0, p['flags'])
                             return
-                        
-                    if globals().has_key(rule['function']):
-                            self.log(u"Правило " + name, u"Замена с использованием preg_replace_callback с функцией " + rule['function'] + u" в правиле")
+
+                    if rule["function"] in globals():
+                            self.log("Правило " + name, "Замена с использованием preg_replace_callback с функцией " + rule['function'] + " в правиле")
                             self._text = re.sub(p['pattern'], globals()[rule['function']], self._text, 0, p['flags'])
                             return
-                    
-                    self.error(u'Функция '+rule['function']+' из правила '+rule['id']+u" не найдена")
+
+                    self.error('Функция '+rule['function']+' из правила '+rule['id']+" не найдена")
                 else:
                     self.preg_replace(rule['pattern']+'e', rule['function'], self._text)
-                    self.log(u'Замена с использованием preg_replace_callback с инлайн функцией из правила ' + rule['id'])
+                    self.log('Замена с использованием preg_replace_callback с инлайн функцией из правила ' + rule['id'])
                     return
                 return
-        
+
         if rule.get('simple_replace'):
             if rule.get('case_sensitive'):
-                self.log(u"Правило "+name, u"Простая замена с использованием str_replace")
+                self.log("Правило "+name, "Простая замена с использованием str_replace")
                 self._text = EMT_Lib.str_replace(rule['pattern'], rule['replacement'], self._text)
                 return
-            self.log(u"Правило "+name, u"Простая замена с использованием str_ireplace")
+            self.log("Правило "+name, "Простая замена с использованием str_ireplace")
             self._text = EMT_Lib.str_ireplace(rule['pattern'], rule['replacement'], self._text)
             return
-        
+
         cycled = False
         if rule.get('cycled'):
             cycled = True
-            
+
         pattern = rule['pattern']
         #p = EMT_Lib.parse_preg_pattern(pattern)
-        #if isinstance(pattern, basestring):
+        #if isinstance(pattern, six.string_types):
         #    pattern = [pattern]
         #if not p['eval']:
         #    self.log("Правило "+name, "Замена с использованием preg_replace")
         #    self._text = EMT_Lib.preg_replace_ex( rule['pattern'], rule['replacement'], self._text, cycled )
         #    return
-        
-        self.log(u"Правило "+name, u"Замена с использованием preg_replace или preg_replace_callback вместо eval")
+
+        self.log("Правило "+name, "Замена с использованием preg_replace или preg_replace_callback вместо eval")
         self._text = self.preg_replace_ex( rule['pattern'], rule['replacement'], self._text, cycled )
 
 
@@ -967,18 +969,18 @@ class EMT_Tret:
         for k in xlist:
             rule = self.rules[k]
             rule['id']    = k
-            if not rule.has_key('order'):
-                rule['order'] = 5 
+            if "order" not in rule:
+                rule['order'] = 5
             rulelist.append(rule)
-        
+
         for rule in rulelist:
-            self.apply_rule(rule)	
+            self.apply_rule(rule)
             self.debug(rule['id'], self._text)
-        
+
         self._post_parse()
 
 
-    
+
     #/**
     # * Создание защищенного тега с содержимым
     # *
@@ -989,21 +991,21 @@ class EMT_Tret:
     # * @return 	string
     # */
     def tag(self, content, tag = 'span', attribute = {} ):
-        if attribute.has_key('class'):
+        if "class" in attribute:
             classname = attribute['class']
             if classname == "nowrap":
                 if not self.is_on('nowrap'):
-                    tag = u"nobr"
+                    tag = "nobr"
                     attribute = {}
                     classname = ""
-            if self.classes.has_key(classname):
+            if classname in self.classes:
                 style_inline = self.classes[classname]
                 if style_inline:
                     attribute['__style'] = style_inline
-                
-            if self.class_names.has_key(classname):
+
+            if classname not in self.class_names:
                 classname = class_names(classname)
-                
+
             classname = (self.class_layout_prefix if self.class_layout_prefix else "" ) + classname
             attribute['class'] = classname
         layout = LAYOUT_STYLE
@@ -1021,7 +1023,7 @@ class EMT_Tret:
     def put_rule(self, name, params):
         self.rules[name] = params
         return self
-    
+
     # /**
     # * Отключить правило, в обработке
     # *
@@ -1029,7 +1031,7 @@ class EMT_Tret:
     # */
     def disable_rule(self, name):
         self.disabled[name] = True
-        if self.enabled.has_key(name):
+        if name in self.enabled:
             del self.enabled[name]
 
     #/**
@@ -1039,7 +1041,7 @@ class EMT_Tret:
     # */
     def enable_rule(self, name):
         self.enabled[name] = True
-        if self.disabled.has_key(name):
+        if name in self.disabled:
             del self.disabled[name]
 
     # /**
@@ -1057,11 +1059,11 @@ class EMT_Tret:
     # * @param string $key
     # */
     def is_on(self, key):
-        if not self.settings.has_key(key):
+        if key not in self.settings:
             return False
         kk = self.settings[key]
-        if isinstance(kk, basestring) and kk.lower() == "on": return True
-        if isinstance(kk, basestring) and kk == "1": return True
+        if isinstance(kk, six.string_types) and kk.lower() == "on": return True
+        if isinstance(kk, six.string_types) and kk == "1": return True
         if isinstance(kk, bool) and kk: return True
         if isinstance(kk, int) and kk == 1: return True
         return False
@@ -1073,18 +1075,19 @@ class EMT_Tret:
     # * @return unknown
     # */
     def ss(self, key):
-        if not self.settings.has_key(key): return ""
+        if key not in self.settings:
+            return ""
         return self.settings[key]
 
     # /**
     # * Добавить настройку в правило
     # *
-    # * @param string $rulename идентификатор правила 
+    # * @param string $rulename идентификатор правила
     # * @param string $key ключ
     # * @param mixed $value значение
     # */
     def set_rule(self, rulename, key, value):
-        if not self.rules.has_key(rulename):
+        if rulename not in self.rules:
             self.rules[rulename] = {}
         self.rules[rulename][key] = value
 
@@ -1101,7 +1104,7 @@ class EMT_Tret:
                 self.disable_rule(rulename)
             else:
                 self.enable_rule(rulename)
-        
+
         if xstrict:
             for rulename in self.rules:
                 y = self.rules[rulename]
@@ -1126,7 +1129,7 @@ class EMT_Tret:
     # * @return string
     # */
     def apply(self, xlist = None):
-        if isinstance(xlist, basestring):
+        if isinstance(xlist, six.string_types):
             rlist = [xlist]
         elif isinstance(xlist, (list, tuple)):
             rlist = xlist
@@ -1149,10 +1152,10 @@ class EMT_Tret:
     # */
     def post_parse(self):
         return
-    
-    
-    
-    
+
+
+
+
 
 # EMT_Lib.preg_replace('/aaa/msi', 'bbb', 'xxx aaa yyy')
 
@@ -1173,7 +1176,7 @@ class EMT_Tret:
 # * Evgeny Muravjev Typograph, http://mdash.ru
 # * Version: 3.5 Gold Master
 # * Release Date: July 2, 2015
-# * Authors: Evgeny Muravjev & Alexander Drutsa  
+# * Authors: Evgeny Muravjev & Alexander Drutsa
 # */
 
 
@@ -1187,7 +1190,7 @@ class EMT_Base:
     def __init__(self):
         self._text = ""
         self.inited = False
-    
+
         #/**
         # * Список Трэтов, которые надо применить к типогрфированию
         # *
@@ -1196,43 +1199,43 @@ class EMT_Base:
         self.trets = []
         self.trets_index = []
         self.tret_objects = {}
-    
+
         self.ok             = False
         self.debug_enabled  = False
         self.logging        = False
-        self.logs           = [] 
+        self.logs           = []
         self.errors         = []
         self.debug_info     = []
-        
+
         self.use_layout = False
         self.class_layout_prefix = False
         self.use_layout_set = False
         self.disable_notg_replace = False
         self.remove_notg = False
-        
+
         self.settings = {}
-        self._safe_blocks = []	
-        self._safe_sequences = []	
-        self._safe_sequence_mark = u"SAFESEQUENCENUM";
+        self._safe_blocks = []
+        self._safe_sequences = []
+        self._safe_sequence_mark = "SAFESEQUENCENUM";
 
     def log(self, xstr, data = None):
         if not self.logging:
             return
         self.logs.append({'class': '', 'info': xstr, 'data': data})
-    
+
     def tret_log(self, tret, xstr, data = None):
         self.logs.append({'class': tret, 'info': xstr, 'data': data})
-            
+
     def error(self, info, data = None):
         self.errors.append({'class': '', 'info': info, 'data': data})
         self.log("ERROR "+info, data )
-    
+
     def tret_error(self, tret, info, data = None):
         self.errors.append({'class': tret, 'info': info, 'data': data})
-    
+
     def debug(self, xclass, place, after_text, after_text_raw = ""):
         if not self.debug_enabled: return
-        if isinstance(xclass, basestring):
+        if isinstance(xclass, six.string_types):
             classname = xclass
         else:
             classname = xclass.__class__.__name__
@@ -1243,12 +1246,12 @@ class EMT_Base:
                         'text'  : after_text,
                         'text_raw' : after_text_raw,
                 })
-    
-    
-    
-    
-    
-    
+
+
+
+
+
+
     # /**
     # * Включить режим отладки, чтобы посмотреть последовательность вызовов
     # * третов и правил после
@@ -1256,7 +1259,7 @@ class EMT_Base:
     # */
     def debug_on(self):
         self.debug_enabled = True
-    
+
     # /**
     # * Включить режим отладки, чтобы посмотреть последовательность вызовов
     # * третов и правил после
@@ -1264,7 +1267,7 @@ class EMT_Base:
     # */
     def log_on(self):
         self.logging = True
-    
+
     # /**
     # * Добавление защищенного блока
     # *
@@ -1272,7 +1275,7 @@ class EMT_Base:
     # *  Jare_Typograph_Tool::addCustomBlocks('<span>', '</span>');
     # *  Jare_Typograph_Tool::addCustomBlocks('\<nobr\>', '\<\/span\>', True);
     # * </code>
-    # * 
+    # *
     # * @param 	string $id идентификатор
     # * @param 	string $open начало блока
     # * @param 	string $close конец защищенного блока
@@ -1286,7 +1289,7 @@ class EMT_Base:
                     'open' :  xopen,
                     'close' :  close
             })
-            
+
     # /**
     # * Добавление защищенного блока
     # *
@@ -1301,7 +1304,7 @@ class EMT_Base:
                     'type' : type,
                     'content' :  content
             })
-    
+
     # /**
     # * Вычисляем тэг, которого нет в заданном тексте
     # *
@@ -1311,10 +1314,10 @@ class EMT_Base:
     	seq = self._safe_sequence_mark
     	i = 0
     	while self._text.find(seq) != -1:
-    		seq = EMT_Lib.str_replace(u"SAFESEQUENCENUM",u"SAFESEQUENCE"+str(i)+u"NUM", self._safe_sequence_mark);
+    		seq = EMT_Lib.str_replace("SAFESEQUENCENUM","SAFESEQUENCE"+str(i)+"NUM", self._safe_sequence_mark);
     		i += 1
     	self._safe_sequence_mark = seq
-    
+
     # /**
     # * Список защищенных блоков
     # *
@@ -1322,7 +1325,7 @@ class EMT_Base:
     # */
     def get_all_safe_blocks(self):
        return self._safe_blocks
-    
+
     # /**
     # * Список защищенных последовательностей
     # *
@@ -1330,24 +1333,24 @@ class EMT_Base:
     # */
     def get_all_safe_sequences(self):
     	return self._safe_sequences
-    
+
     # /**
     # * Удаленного блока по его номеру ключа
     # *
-    # * @param 	string $id идентифиактор защищённого блока 
+    # * @param 	string $id идентифиактор защищённого блока
     # * @return  void
     # */
     def remove_safe_block(self, xid):
         i = 0
-        for x in self._safe_blocks:            
+        for x in self._safe_blocks:
             if x['id'] == xid:
                 break
             i += 1
         if i == len(self._safe_blocks):
             return
         del self._safe_blocks[i]
-    
-    
+
+
     # /**
     # * Добавление защищенного блока
     # *
@@ -1359,8 +1362,8 @@ class EMT_Base:
         close = re.escape("</"+tag+">")
         self._add_safe_block(tag, xopen, close, tag)
         return True
-    
-    
+
+
     # /**
     # * Добавление защищенного блока
     # *
@@ -1372,27 +1375,27 @@ class EMT_Base:
     def add_safe_block(self, xid, xopen, close, quoted = False):
         xopen = xopen.strip()
         close = close.strip()
-        
+
         if xopen == "" or close == "":
             return False
-        
-        if not quoted: 
+
+        if not quoted:
             xopen = re.escape(xopen)
             close = re.escape(close)
-        
+
         self._add_safe_block(xid, xopen, close, "")
         return True
-    
-    
+
+
     # /**
     # * Сохранение содержимого защищенных блоков
     # *
     # * @param   string $text
-    # * @param   bool $safe если True, то содержимое блоков будет сохранено, иначе - раскодировано. 
+    # * @param   bool $safe если True, то содержимое блоков будет сохранено, иначе - раскодировано.
     # * @return  string
     # */
     def safe_blocks(self, text, way, show = True):
-        if len(self._safe_blocks): 
+        if len(self._safe_blocks):
             safeType =  "EMT_Lib.encrypt_tag(m.group(2))" if True == way else "stripslashes(EMT_Lib.decrypt_tag(m.group(2)))"
             selfblocks = self._safe_blocks
             if not way:
@@ -1401,11 +1404,11 @@ class EMT_Base:
                 return m.group(1)+(EMT_Lib.encrypt_tag(m.group(2)) if True == way else EMT_Lib.decrypt_tag(m.group(2)).replace("\\n","\n").replace("\\r","\n").replace("\\",""))+m.group(3)
             for idx in selfblocks:
                 block = idx
-                #text = EMT_Lib.preg_replace(u"/("+block['open']+u")(.+?)("+block['close']+u")/ue", 'm.group(1)+' + safeType + '+m.group(3)', text)
-                text = re.sub(u"("+block['open']+u")(.+?)("+block['close']+u")", safereplace, text, 0, re.U)
+                #text = EMT_Lib.preg_replace("/("+block['open']+")(.+?)("+block['close']+")/ue", 'm.group(1)+' + safeType + '+m.group(3)', text)
+                text = re.sub("("+block['open']+")(.+?)("+block['close']+")", safereplace, text, 0, re.U)
         return text
-    
-    
+
+
     # /**
     # * Кодирование УРЛа
     # *
@@ -1415,8 +1418,8 @@ class EMT_Base:
     def safe_sequence_url(self, m):
     	id = len(self._safe_sequences);
     	self._add_safe_sequence(0, m.group(0));
-    	return u"http://mdash.ru/A0"+self._safe_sequence_mark+str(id)+u"ID";
-    
+    	return "http://mdash.ru/A0"+self._safe_sequence_mark+str(id)+"ID";
+
     # /**
     # * Кодирование Почты
     # *
@@ -1426,8 +1429,8 @@ class EMT_Base:
     def safe_sequence_email(self, m):
     	id = len(self._safe_sequences);
     	self._add_safe_sequence(1, m.group(0));
-    	return u"A1"+self._safe_sequence_mark+str(id)+u"ID@mdash.ru";
-     
+    	return "A1"+self._safe_sequence_mark+str(id)+"ID@mdash.r";
+
     # /**
     # * Декодирование УРЛа
     # *
@@ -1436,7 +1439,7 @@ class EMT_Base:
     # */
     def unsafe_sequence_url(self, m):
     	return self._safe_sequences[int(m.group(1))]['content'];
-    
+
     # /**
     # * Декодирование УРЛа с удалением http://
     # *
@@ -1445,9 +1448,9 @@ class EMT_Base:
     # */
     def unsafe_sequence_url_nohttp(self, m):
     	z = self._safe_sequences[int(m.group(1))]['content'];
-    	return re.sub(u"([^:]+)://", "", z);
-    
-    
+    	return re.sub("([^:]+)://", "", z);
+
+
     # /**
     # * Декодирование Почты
     # *
@@ -1456,12 +1459,12 @@ class EMT_Base:
     # */
     def unsafe_sequence_email(self, m):
     	return self._safe_sequences[int(m.group(1))]['content'];
-    
+
     # /**
     # * Сохранение защищенных последовательностей
     # *
     # * @param   string $text
-    # * @param   bool $safe если true, то содержимое блоков будет сохранено, иначе - раскодировано. 
+    # * @param   bool $safe если true, то содержимое блоков будет сохранено, иначе - раскодировано.
     # * @return  string
     # */
     def safe_sequences(self, text, way, show = True):
@@ -1469,27 +1472,27 @@ class EMT_Base:
             def repl1(m):
                 return self.safe_sequence_url(m) #text = preg_replace_callback(EMT_Lib.url_regex(), repl1, text);
             text = re.sub(EMT_Lib.url_regex(), repl1, text, 0, re.U | re.I | re.S)
-            
+
             def repl2(m):
                 return self.safe_sequence_email(m) #text = preg_replace_callback(EMT_Lib::email_regex(), array($this, "safe_sequence_email") , $text);
             text = re.sub(EMT_Lib.email_regex(), repl2, text, 0, re.U | re.I | re.S)
-            
-            
+
+
     	else:
             def repl3(m):
                 return self.unsafe_sequence_url(m) #$text = preg_replace_callback('~http://mdash.ru/A0'.$this->_safe_sequence_mark.'(\d+)ID~ims', array($this, "unsafe_sequence_url") , $text);
-            text = re.sub(u'http://mdash.ru/A0'+self._safe_sequence_mark+u'(\d+)ID', repl3, text, 0, re.U | re.I | re.S)
+            text = re.sub('http://mdash.ru/A0'+self._safe_sequence_mark+'(\d+)ID', repl3, text, 0, re.U | re.I | re.S)
             def repl4(m):
                 return self.unsafe_sequence_url_nohttp(m) #$text = preg_replace_callback('~mdash.ru/A0'.$this->_safe_sequence_mark.'(\d+)ID~ims', array($this, "unsafe_sequence_url_nohttp") , $text);
-            text = re.sub(u'mdash.ru/A0'+self._safe_sequence_mark+u'(\d+)ID', repl4, text, 0, re.U | re.I | re.S)
+            text = re.sub('mdash.ru/A0'+self._safe_sequence_mark+'(\d+)ID', repl4, text, 0, re.U | re.I | re.S)
             def repl5(m):
                 return self.unsafe_sequence_email(m) #$text = preg_replace_callback('~A1'.$this->_safe_sequence_mark.'(\d+)ID@mdash.ru~ims', array($this, "unsafe_sequence_email") , $text);
-            text = re.sub(u'A1'+self._safe_sequence_mark+u'(\d+)ID@mdash.ru', repl5, text, 0, re.U | re.I | re.S)
-    		
+            text = re.sub('A1'+self._safe_sequence_mark+'(\d+)ID@mdash.r', repl5, text, 0, re.U | re.I | re.S)
+
     	return text
-    
-    
-    
+
+
+
     # /**
     # * Декодирование блоков, которые были скрыты в момент типографирования
     # *
@@ -1498,8 +1501,8 @@ class EMT_Base:
     # */
     def decode_internal_blocks(self, text):
         return EMT_Lib.decode_internal_blocks(text)
-    
-    
+
+
     def create_object(self, tret):
         # если класса нету, попытаемся его прогрузить, например, если стандартный
         try:
@@ -1511,22 +1514,22 @@ class EMT_Base:
             self.error("Класс "+tret + " не найден. Пожалуйста, подргузите нужный файл.")
             return None
         return None
-    
+
     def get_short_tret(self, tretname):
         m = re.match('^EMT_Tret_([a-zA-Z0-9_]+)$', tretname)
         if m:
             return m.group(1)
         return tretname
-    
+
     def _init(self):
         for tret in self.trets:
-            if self.tret_objects.has_key(tret):
+            if tret in self.tret_objects:
                 continue
             obj = self.create_object(tret)
             if obj == None:
                 continue
             self.tret_objects[tret] = obj
-        
+
         if not self.inited:
             self.add_safe_tag('pre')
             self.add_safe_tag('script')
@@ -1534,11 +1537,11 @@ class EMT_Base:
             self.add_safe_tag('notg')
             self.add_safe_block('span-notg', '<span class="_notg_start"></span>', '<span class="_notg_end"></span>')
         self.inited = True
-        
+
         self.detect_safe_mark()
-    
-    
-    
+
+
+
     # /**
     # * Инициализация класса, используется чтобы задать список третов или
     # * спсиок защищённых блоков, которые можно использовать.
@@ -1547,16 +1550,16 @@ class EMT_Base:
     # */
     def init(self):
         return
-    
+
     # /**
-    # * Добавить Трэт, 
+    # * Добавить Трэт,
     # *
     # * @param mixed $class - имя класса трета, или сам объект
     # * @param string $altname - альтернативное имя, если хотим например иметь два одинаоковых терта в обработке
     # * @return unknown
     # */
     def add_tret(self, xclass, altname = False):
-        if isinstance(xclass, basestring):
+        if isinstance(xclass, six.string_types):
             obj = self.create_object(xclass)
             if obj == None:
                     return False
@@ -1566,7 +1569,7 @@ class EMT_Base:
         try:
             if not issubclass(xclass, EMT_Tret):
                 self.error("You are adding Tret that doesn't inherit base class EMT_Tret", xclass.__class__.__name__)
-                return False                
+                return False
             xclass.EMT     = self
             xclass.logging = self.logging
             self.tret_objects[ altname if altname else xclass.__class__.__name__] = xclass
@@ -1575,27 +1578,28 @@ class EMT_Base:
         except:
             self.error("Чтобы добавить трэт необходимо передать имя или объект")
         return False
-    
+
     # /**
     # * Получаем ТРЕТ по идентивикатору, т.е. заванию класса
     # *
     # * @param unknown_type $name
     # */
     def get_tret(self, name):
-        if self.tret_objects.has_key(name):
+        if name in self.tret_objects:
             return self.tret_objects[name]
+
         for tret in self.trets:
             if tret == name:
                 self._init()
                 return self.tret_objects[name]
-            
+
             if self.get_short_tret(tret) == name:
-                    self._init()
-                    return self.tret_objects[tret]
-                
+                self._init()
+                return self.tret_objects[tret]
+
         self.error("Трэт с идентификатором "+name+" не найден")
         return False
-    
+
     #/**
     # * Задаём текст для применения типографа
     # *
@@ -1603,69 +1607,69 @@ class EMT_Base:
     # */
     def set_text(self, text):
         self._text = text
-    
-    
-    
+
+
+
     #/**
     # * Запустить типограф на выполнение
     # *
     # */
     def apply(self, trets = None):
         self.ok = False
-        
+
         self.init()
         self._init()
-        
+
         atrets = self.trets
-        if isinstance(trets, basestring):
+        if isinstance(trets, six.string_types):
             atrets = [trets]
         elif isinstance(trets, (list, tuple)):
             atrets = trets
-        
+
         self.debug(self, 'init', self._text)
-        
+
         self._text = self.safe_sequences(self._text, True)
         self.debug(self, 'safe_sequences', self._text)
-        
+
         self._text = self.safe_blocks(self._text, True)
         self.debug(self, 'safe_blocks', self._text)
-        
+
         self._text = EMT_Lib.safe_tag_chars(self._text, True)
         self.debug(self, 'safe_tag_chars', self._text)
-        
+
         self._text = EMT_Lib.clear_special_chars(self._text)
         self.debug(self, 'clear_special_chars', self._text)
-        
+
         for tret in atrets:
             # если установлен режим разметки тэгов то выставим его
             if self.use_layout_set:
                 self.tret_objects[tret].set_tag_layout_ifnotset(self.use_layout)
-                    
+
             if self.class_layout_prefix:
                 self.tret_objects[tret].set_class_layout_prefix(self.class_layout_prefix)
-            
+
             # влючаем, если нужно
             if self.debug_enabled:
                 self.tret_objects[tret].debug_on()
             if self.logging:
                 self.tret_objects[tret].logging = True
-                                    
+
             # применяем трэт
             self.tret_objects[tret].set_text(self._text)
             self.tret_objects[tret].apply()
             self._text = self.tret_objects[tret]._text
-            
+
             # соберём ошибки если таковые есть
             if len(self.tret_objects[tret].errors)>0:
                 for err in self.tret_objects[tret].errors:
                     self.tret_error(tret, err['info'], err['data'])
-            
-            # логгирование 
+
+            # логгирование
             if self.logging:
                 if len(self.tret_objects[tret].logs)>0:
                     for log in self.tret_objects[tret].logs:
                         self.tret_log(tret, log['info'], log['data'])
-            
+
             # отладка
             if self.debug_enabled:
                 for di in self.tret_objects[tret].debug_info:
@@ -1673,42 +1677,42 @@ class EMT_Base:
                     unsafetext = EMT_Lib.safe_tag_chars(unsafetext, False)
                     unsafetext = self.safe_blocks(unsafetext, False)
                     self.debug(tret, di['place'], unsafetext, di['text'])
-            
+
         self._text = self.decode_internal_blocks(self._text)
         self.debug(self, 'decode_internal_blocks', self._text)
-        
+
         if self.is_on('dounicode'):
             self._text = EMT_Lib.convert_html_entities_to_unicode(self._text)
-        
+
         self._text = EMT_Lib.safe_tag_chars(self._text, False)
         self.debug(self, 'unsafe_tag_chars', self._text)
-        
-        self._text = self.safe_blocks(self._text, False)	
+
+        self._text = self.safe_blocks(self._text, False)
         self.debug(self, 'unsafe_blocks', self._text)
-        
-        self._text = self.safe_sequences(self._text, False)	
+
+        self._text = self.safe_sequences(self._text, False)
         self.debug(self, 'unsafe_sequences', self._text)
-        
+
         if not self.disable_notg_replace:
             repl = ['<span class="_notg_start"></span>', '<span class="_notg_end"></span>']
             if self.remove_notg:
                 repl = ""
             self._text = EMT_Lib.str_replace( ['<notg>','</notg>'], repl , self._text)
-            
+
         self._text = self._text.strip()
         self.ok = len(self.errors)==0
         return self._text
-    
+
     #/**
     # * Получить содержимое <style></style> при использовании классов
-    # * 
+    # *
     # * @param bool $list False - вернуть в виде строки для style или как массив
     # * @param bool $compact не выводить пустые классы
     # * @return string|array
     # */
     def get_style(self, xlist = False, compact = False):
         self._init()
-        
+
         res = {}
         for tret in self.trets:
             arr = self.tret_objects[tret].classes
@@ -1719,11 +1723,11 @@ class EMT_Base:
                 if compact and not xstr:
                     continue
                 z = classname
-                if self.tret_objects[tret].class_names.has_key(classname):
+                if classname in self.tret_objects[tret].class_names:
                     z = self.tret_objects[tret].class_names[classname]
                 clsname = (self.class_layout_prefix if self.class_layout_prefix else "" ) + z
                 res[clsname] = xstr
-                
+
         if xlist:
             return res
         xstr = ""
@@ -1731,7 +1735,7 @@ class EMT_Base:
             v = res[k]
             xstr = xstr + "."+k+" { "+v+" }\n"
         return xstr
-    
+
     #/**
     # * Установить режим разметки,
     # *   EMT_Lib::LAYOUT_STYLE - с помощью стилей
@@ -1743,15 +1747,15 @@ class EMT_Base:
     def set_tag_layout(self, layout = LAYOUT_STYLE):
         self.use_layout = layout
         self.use_layout_set = True
-    
+
     #/**
     # * Установить префикс для классов
     # *
     # * @param string|bool $prefix если True то префикс 'emt_', иначе то, что передали
     # */
     def set_class_layout_prefix(self, prefix ):
-        self.class_layout_prefix = prefix if isinstance(prefix,basestring) else  "emt_"
-    
+        self.class_layout_prefix = prefix if isinstance(prefix,six.string_types) else  "emt_"
+
     #/**
     # * Включить/отключить правила, согласно карте
     # * Формат карты:
@@ -1773,37 +1777,37 @@ class EMT_Base:
             if not tretx:
                 self.log("Трэт " + tret + " не найден при применении карты включаемых правил")
                 continue
-            
+
             trets.append(tretx)
-            
+
             if isinstance(xlist , bool) and xlist: # все
                 tretx.activate([], not disable,  True)
-            elif isinstance(xlist, basestring):
+            elif isinstance(xlist, six.string_types):
                 tretx.activate([xlist], disable,  xstrict)
             elif isinstance(xlist , (list, tuple)):
                 tretx.activate(xlist, disable,  xstrict)
-            
+
         if xstrict:
             for tret in self.trets:
                 if self.tret_objects[tret] in trets:
                     continue
                 self.tret_objects[tret].activate([], disable , True)
-    
+
     #/**
     # * Установлена ли настройка
     # *
     # * @param string $key
     # */
     def is_on(self, key):
-        if not self.settings.has_key(key):
+        if key not in self.settings:
             return False
         kk = self.settings[key]
-        if isinstance(kk, basestring) and kk.lower() == "on": return True
-        if isinstance(kk, basestring) and kk == "1": return True
+        if isinstance(kk, six.string_types) and kk.lower() == "on": return True
+        if isinstance(kk, six.string_types) and kk == "1": return True
         if isinstance(kk, bool) and kk: return True
         if isinstance(kk, int) and kk == 1: return True
         return False
-    
+
     #/**
     # * Установить настройку
     # *
@@ -1815,7 +1819,7 @@ class EMT_Base:
         tret_pattern = False
         rule_pattern = False
         #if(($selector === False) || ($selector === null) || ($selector === False) || ($selector === "*")) $type = 0
-        if isinstance(selector, basestring):
+        if isinstance(selector, six.string_types):
             if selector.find(".")==-1:
                 tret_pattern = selector
             else:
@@ -1827,7 +1831,7 @@ class EMT_Base:
         rule_pattern = EMT_Lib.process_selector_pattern(rule_pattern)
         if selector == "*":
             self.settings[key] = value
-        
+
         for tret in self.trets:
             t1 = self.get_short_tret(tret)
             if not EMT_Lib.test_pattern(tret_pattern, t1):
@@ -1840,12 +1844,12 @@ class EMT_Base:
                         continue
                     is_on = False
                     is_off = False
-                    if isinstance(value, basestring) and value.lower() == "on": is_on = True
-                    elif isinstance(value, basestring) and value == "1": is_on = True
+                    if isinstance(value, six.string_types) and value.lower() == "on": is_on = True
+                    elif isinstance(value, six.string_types) and value == "1": is_on = True
                     elif isinstance(value, bool) and value: is_on = True
                     elif isinstance(value, int) and value == 1: is_on = True
-                    if isinstance(value, basestring) and value.lower() == "off": is_off = True
-                    elif isinstance(value, basestring) and value == "0": is_off = True
+                    if isinstance(value, six.string_types) and value.lower() == "off": is_off = True
+                    elif isinstance(value, six.string_types) and value == "0": is_off = True
                     elif isinstance(value, bool) and not value: is_off = True
                     elif isinstance(value, int) and value == 0: is_off = True
                     if is_on:
@@ -1860,7 +1864,7 @@ class EMT_Base:
                         if not EMT_Lib.test_pattern(rule_pattern, rulename):
                             continue
                         tret_obj.set_rule(rulename, key, value)
-    
+
     #/**
     # * Установить настройки для тертов и правил
     # * 	1. если селектор является массивом, то тогда утсановка правил будет выполнена для каждого
@@ -1868,7 +1872,7 @@ class EMT_Base:
     # *  2. Если $key не является массивом, то эта настрока будет проставлена согласно селектору
     # *  3. Если $key массив - то будет задана группа настроек
     # *       - если $value массив , то настройки определяются по ключам из массива $key, а значения из $value
-    # *       - иначе, $key содержит ключ-значение как массив  
+    # *       - иначе, $key содержит ключ-значение как массив
 	# *  4. $exact_match - если true тогда array selector будет соответсвовать array $key, а не произведению массивов
     # *
     # * @param mixed $selector
@@ -1890,11 +1894,11 @@ class EMT_Base:
                     kk = y
                     vv = value[x]
                 else:
-                    kk = y if value else x ;
-                    vv = value if value else y ;
+                    kk = y if value else x
+                    vv = value if value else y
                 self.set(selector[ind], kk, vv)
                 ind += 1
-            return 
+            return
         if isinstance(selector, (list,tuple,set)):
             for val in selector:
                 self.set(val, key, value)
@@ -1912,22 +1916,22 @@ class EMT_Base:
                     kk = y
                     vv = value[x]
                 else:
-                    kk = y if value else x ;
-                    vv = value if value else y ;
-				
+                    kk = y if value else x
+                    vv = value if value else y
+
                 self.set(selector, kk, vv)
                 ind += 1
-            return 
+            return
         self.doset(selector, key, value)
-    
-    
+
+
     #/**
     # * Возвращает список текущих третов, которые установлены
     # *
     # */
     def get_trets_list(self):
         return self.trets
-    
+
     #/**
     # * Установка одной метанастройки
     # *
@@ -1936,8 +1940,8 @@ class EMT_Base:
     # */
     def do_setup(self, name, value):
         return
-    
-    
+
+
     # /**
     # * Установить настройки
     # *
@@ -1946,9 +1950,9 @@ class EMT_Base:
     def setup(self, setupmap):
         if not isinstance(setupmap, dict):
             return
-        
-        if setupmap.has_key('map') or setupmap.has_key('maps'):
-            #if setupmap.has_key('map'):
+
+        if "map" in setupmap or "maps" in setupmap:
+            #if "map" in setupmap:
             #    ret['map'] = test['params']['map']
             #    ret['disable'] = test['params']['map_disable']
             #    ret['strict'] = test['params']['map_strict']
@@ -1957,24 +1961,25 @@ class EMT_Base:
             #    del setupmap['map_disable']
             #    del setupmap['map_strict']
 
-            if setupmap.has_key('maps'):
+            if "maps" in setupmap:
                 for xmap in setupmap['maps']:
-                    self.set_enable_map(xmap['map'], 
-                                        xmap['disable'] if xmap.has_key('disable') else False,
-                                        xmap['strict'] if xmap.has_key('strict') else False
-                                    )
+                    self.set_enable_map(
+                        xmap['map'],
+                        xmap['disable'] if "disable" in xmap else False,
+                        xmap['strict'] if "strict" in xmap else False
+                    )
             del setupmap['maps']
-        
+
         for k in setupmap:
             v = setupmap[k]
             self.do_setup(k , v)
-    
-    
+
+
 class EMTypograph(EMT_Base):
     def __init__(self):
         EMT_Base.__init__(self)
         self.trets = ['EMT_Tret_Quote', 'EMT_Tret_Dash', 'EMT_Tret_Symbol', 'EMT_Tret_Punctmark', 'EMT_Tret_Number',  'EMT_Tret_Space', 'EMT_Tret_Abbr',  'EMT_Tret_Nobr', 'EMT_Tret_Date', 'EMT_Tret_OptAlign', 'EMT_Tret_Etc', 'EMT_Tret_Text']
-        
+
         self.group_list  = {
                 'Quote'     : True,
                 'Dash'      : True,
@@ -1984,31 +1989,31 @@ class EMTypograph(EMT_Base):
                 'Number'    : True,
                 'Date'      : True,
                 'Space'     : True,
-                'Abbr'      : True,		
+                'Abbr'      : True,
                 'OptAlign'  : True,
                 'Text'      : True,
-                'Etc'       : True,	
+                'Etc'       : True,
             }
         self.all_options = {
                 'Quote.quotes' :  {'description' : 'Расстановка «кавычек-елочек» первого уровня', 'selector' : "Quote.*quote" },
                 'Quote.quotation' : { 'description' : 'Внутренние кавычки-лапки', 'selector' : "Quote", 'setting' : 'no_bdquotes', 'reversed' : True },
-                                                        
+
                 'Dash.to_libo_nibud' : 'direct',
                 'Dash.iz_za_pod' : 'direct',
                 'Dash.ka_de_kas' : 'direct',
-                
+
                 'Nobr.super_nbsp' : 'direct',
                 'Nobr.nbsp_in_the_end' : 'direct',
                 'Nobr.phone_builder' : 'direct',
                 'Nobr.phone_builder_v2' : 'direct',
                 'Nobr.ip_address' : 'direct',
                 'Nobr.spaces_nobr_in_surname_abbr' : 'direct',
-                'Nobr.dots_for_surname_abbr' : 'direct',                
-                'Nobr.nbsp_celcius' : 'direct',		
+                'Nobr.dots_for_surname_abbr' : 'direct',
+                'Nobr.nbsp_celcius' : 'direct',
                 'Nobr.hyphen_nowrap_in_small_words' : 'direct',
                 'Nobr.hyphen_nowrap' : 'direct',
                 'Nobr.nowrap' : {'description' : 'Nobr (по умолчанию) & nowrap', 'disabled' : True, 'selector' : '*', 'setting' : 'nowrap' },
-                
+
                 'Symbol.tm_replace'     : 'direct',
                 'Symbol.r_sign_replace' : 'direct',
                 'Symbol.copy_replace' : 'direct',
@@ -2016,13 +2021,13 @@ class EMTypograph(EMT_Base):
                 'Symbol.degree_f' : 'direct',
                 'Symbol.arrows_symbols' : 'direct',
                 'Symbol.no_inches' : { 'description' : 'Расстановка дюйма после числа', 'selector' : "Quote", 'setting' : 'no_inches', 'reversed' : True },
-                
+
                 'Punctmark.auto_comma' : 'direct',
                 'Punctmark.hellip' : 'direct',
                 'Punctmark.fix_pmarks' : 'direct',
                 'Punctmark.fix_excl_quest_marks' : 'direct',
                 'Punctmark.dot_on_end' : 'direct',
-                
+
                 'Number.minus_between_nums' : 'direct',
                 'Number.minus_in_numbers_range' : 'direct',
                 'Number.auto_times_x' : 'direct',
@@ -2032,52 +2037,52 @@ class EMTypograph(EMT_Base):
                 'Number.thinsp_between_number_triads' : 'direct',
                 'Number.thinsp_between_no_and_number' : 'direct',
                 'Number.thinsp_between_sect_and_number' : 'direct',
-                
+
                 'Date.years' : 'direct',
                 'Date.mdash_month_interval' : 'direct',
                 'Date.nbsp_and_dash_month_interval' : 'direct',
                 'Date.nobr_year_in_date' : 'direct',
-                
-                'Space.many_spaces_to_one' : 'direct',	
-                'Space.clear_percent' : 'direct',	
+
+                'Space.many_spaces_to_one' : 'direct',
+                'Space.clear_percent' : 'direct',
                 'Space.clear_before_after_punct' : { 'description' : 'Удаление пробелов перед и после знаков препинания в предложении', 'selector' : 'Space.remove_space_before_punctuationmarks'},
                 'Space.autospace_after' : { 'description' : 'Расстановка пробелов после знаков препинания', 'selector' : 'Space.autospace_after_*'},
-                'Space.bracket_fix' : { 'description' : 'Удаление пробелов внутри скобок, а также расстановка пробела перед скобками', 
+                'Space.bracket_fix' : { 'description' : 'Удаление пробелов внутри скобок, а также расстановка пробела перед скобками',
                                     'selector' : ['Space.nbsp_before_open_quote', 'Punctmark.fix_brackets']
-                                },             
+                                },
 
-                'Abbr.nbsp_money_abbr' : { 'description' : 'Форматирование денежных сокращений (расстановка пробелов и привязка названия валюты к числу)', 
+                'Abbr.nbsp_money_abbr' : { 'description' : 'Форматирование денежных сокращений (расстановка пробелов и привязка названия валюты к числу)',
                                     'selector' : ['Abbr.nbsp_money_abbr', 'Abbr.nbsp_money_abbr_rev']
-                                },    
-                'Abbr.nobr_vtch_itd_itp' : 'direct',		
-                'Abbr.nobr_sm_im' : 'direct',		
-                'Abbr.nobr_acronym' : 'direct',		
-                'Abbr.nobr_locations' : 'direct',		
-                'Abbr.nobr_abbreviation' : 'direct',		
-                'Abbr.ps_pps' : 'direct',		
-                'Abbr.nbsp_org_abbr' : 'direct',		
-                'Abbr.nobr_gost' : 'direct',		
-                'Abbr.nobr_before_unit_volt' : 'direct',		
-                'Abbr.nbsp_before_unit' : 'direct',		
-                
+                                },
+                'Abbr.nobr_vtch_itd_itp' : 'direct',
+                'Abbr.nobr_sm_im' : 'direct',
+                'Abbr.nobr_acronym' : 'direct',
+                'Abbr.nobr_locations' : 'direct',
+                'Abbr.nobr_abbreviation' : 'direct',
+                'Abbr.ps_pps' : 'direct',
+                'Abbr.nbsp_org_abbr' : 'direct',
+                'Abbr.nobr_gost' : 'direct',
+                'Abbr.nobr_before_unit_volt' : 'direct',
+                'Abbr.nbsp_before_unit' : 'direct',
+
                 'OptAlign.all' : { 'description' : 'Inline стили или CSS', 'hide' : True, 'selector' : 'OptAlign.*'},
-                'OptAlign.oa_oquote' : 'direct',	
-                'OptAlign.oa_obracket_coma' : 'direct',	
+                'OptAlign.oa_oquote' : 'direct',
+                'OptAlign.oa_obracket_coma' : 'direct',
                 'OptAlign.layout' : { 'description' : 'Inline стили или CSS' },
-                
+
                 'Text.paragraphs' : 'direct',
                 'Text.auto_links' : 'direct',
                 'Text.email' : 'direct',
                 'Text.breakline' : 'direct',
                 'Text.no_repeat_words' : 'direct',
-                
-                
-                #'Etc.no_nbsp_in_nobr' : 'direct',		
+
+
+                #'Etc.no_nbsp_in_nobr' : 'direct',
                 'Etc.unicode_convert' : {'description' : 'Преобразовывать html-сущности в юникод', 'selector' : ['*', 'Etc.nobr_to_nbsp'], 'setting' : ['dounicode','active'], 'exact_selector' : True ,'disabled': True},
 				'Etc.nobr_to_nbsp' : 'direct',
         }
-        
-        
+
+
     #/**
     # * Получить список имеющихся опций
     # *
@@ -2093,7 +2098,7 @@ class EMTypograph(EMT_Base):
             arr['all'][opt] = self.get_option_info(opt)
             x = opt.split(".")
             bygroup[x[0]].append(opt)
-            
+
         arr['group'] = []
         for group in self.group_list:
             ginfo = self.group_list[group]
@@ -2112,8 +2117,8 @@ class EMTypograph(EMT_Base):
                     info['options'].append(opt)
             arr['group'].append(info)
         return arr
-    
-    
+
+
     #/**
     # * Получить информацию о настройке
     # *
@@ -2121,25 +2126,25 @@ class EMTypograph(EMT_Base):
     # * @return array|False
     # */
     def get_option_info(self, key):
-        if not self.all_options.has_key(key):
+        if key in self.all_options:
             return False
         if isinstance(self.all_options[key], (list,tuple,dict)):
             return self.all_options[key]
-        
+
         if self.all_options[key] == "direct" or self.all_options[key] == "reverse":
             pa = key.split(".")
             tret_pattern = pa[0]
             tret = self.get_tret(tret_pattern)
             if not tret:
-                return False		
-            if not tret.rules.has_key(pa[1]):
+                return False
+            if pa[1] not in tret.rules:
                 return False
             array = tret.rules[pa[1]]
             array['way'] = self.all_options[key]
             return array
-        return False		
-    
-    
+        return False
+
+
     # /**
     # * Установка одной метанастройки
     # *
@@ -2147,26 +2152,26 @@ class EMTypograph(EMT_Base):
     # * @param mixed $value
     # */
     def do_setup(self, name, value):
-        if not self.all_options.has_key(name):
+        if name not in self.all_options:
             return
-        
+
         # эта настрока связана с правилом ядра
-        if isinstance(self.all_options[name], basestring):
+        if isinstance(self.all_options[name], six.string_types):
                 self.set(name, "active", value)
-                return 
+                return
         if isinstance(self.all_options[name], dict):
-            if self.all_options[name].has_key('selector'):
+            if "selector" in self.all_options[name]:
                 settingname = "active"
-                if self.all_options[name].has_key('setting'):
+                if "setting" in self.all_options[name]:
                     settingname = self.all_options[name]['setting']
                 self.set(self.all_options[name]['selector'], settingname, value, self.all_options[name].get('exact_selector'))
-        
+
         if name == "OptAlign.layout":
             if value == "style":
                 self.set_tag_layout(LAYOUT_STYLE)
             if value == "class":
                 self.set_tag_layout(LAYOUT_CLASS)
-    
+
     #/**
     # * Запустить типограф со стандартными параметрами
     # *
@@ -2182,8 +2187,8 @@ class EMTypograph(EMT_Base):
 
 
 #EMT = EMTypograph()
-#EMT.debug_enabled = True
-#EMT.logging = True
+# EMT.debug_enabled = True
+# EMT.logging = True
 #print EMT.fast_apply("the (tm) x")
 #print EMT.debug_info
 #print EMT.logs
